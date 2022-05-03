@@ -1,0 +1,48 @@
+{
+  "name": "@google-automations/secret-manager-octokit-utils",
+  "version": "0.0.0",
+  "description": "Utilities for authenticating Octokit from Secret Manager",
+  "scripts": {
+    "compile": "tsc -p .",
+    "pretest": "npm run compile",
+    "prepare": "npm run compile",
+    "test": "cross-env NODE_ENV=test LOG_LEVEL=fatal c8 mocha ./build/test",
+    "system-test": "npm run pretest && cross-env LOG_LEVEL=fatal mocha ./build/test/integration",
+    "fix": "gts fix",
+    "lint": "gts check"
+  },
+  "main": "./build/src/secret-manager-octokit-utils.js",
+  "repository": "https://github.com/googleapis/repo-automation-bots.git",
+  "homepage": "https://github.com/googleapis/repo-automation-bots",
+  "bugs": "https://github.com/googleapis/repo-automation-bots/issues",
+  "dependencies": {
+    "@google-cloud/secret-manager": "^3.12.0",
+    "@octokit/rest": "^18.5.2"
+  },
+  "devDependencies": {
+    "@types/mocha": "^9.1.1",
+    "@types/node": "^17.0.31",
+    "@types/sinon": "^10.0.11",
+    "c8": "^7.11.2",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.0.0",
+    "gts": "^3.1.0",
+    "mocha": "^10.0.0",
+    "nock": "^13.2.4",
+    "sinon": "^13.0.2",
+    "snap-shot-it": "^7.9.6",
+    "typescript": "~4.6.4"
+  },
+  "engines": {
+    "node": ">= 12.18.2"
+  },
+  "keywords": [
+    "github labels",
+    "Probot"
+  ],
+  "author": "Jeff Ching <chingor@google.com>",
+  "license": "Apache-2.0",
+  "files": [
+    "build/src"
+  ]
+}
