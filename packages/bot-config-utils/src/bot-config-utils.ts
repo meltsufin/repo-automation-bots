@@ -19,7 +19,7 @@ import {RequestError} from '@octokit/types';
 
 // eslint-disable-next-line node/no-extraneous-import
 import {Octokit} from '@octokit/rest';
-import {logger} from 'gcf-utils';
+import {logger as defaultLogger, GCFLogger} from 'gcf-utils';
 
 type Conclusion =
   | 'success'
@@ -175,7 +175,8 @@ export class ConfigChecker<ConfigType> {
     owner: string,
     repo: string,
     commitSha: string,
-    prNumber: number
+    prNumber: number,
+    logger: GCFLogger = defaultLogger
   ): Promise<void> {
     // Sometimes the head branch is gone.
     // In that case, the requests for fetching files might fail with 404.
