@@ -51,11 +51,10 @@ describe('behavior of Python Dependency process', () => {
         author: 'renovate-bot',
         titleRegex:
           /^(fix|chore)\(deps\): update dependency (@?\S*) to v(\S*)$/,
-        maxFiles: 3,
-        fileNameRegex: [/requirements.txt$/],
+        fileNameRegex: [/\S*requirements\S*\.txt$/],
         fileRules: [
           {
-            targetFileToCheck: /^samples\/snippets\/requirements.txt$/,
+            targetFileToCheck: /\S*requirements\S*\.txt$/,
             // This would match: fix(deps): update dependency @octokit to v1
             dependencyTitle: new RegExp(
               /^(fix|chore)\(deps\): update dependency (@?\S*) to v(\S*)$/
@@ -147,6 +146,18 @@ describe('behavior of Python Dependency process', () => {
         {
           sha: '1349c83bf3c20b102da7ce85ebd384e0822354f3',
           filename: 'samples/snippets/requirements.txt',
+          additions: 1,
+          deletions: 1,
+          changes: 2,
+          patch:
+            '@@ -1,2 +1,2 @@\n' +
+            ' google-cloud-videointelligence==2.5.1\n' +
+            '-google-cloud-storage==1.42.3\n' +
+            '+google-cloud-storage==1.43.0',
+        },
+        {
+          sha: '1349c83bf3c20b102da7ce85ebd384e0822354f3',
+          filename: 'requirements/snippets/hello-wlrd-goodbye.txt',
           additions: 1,
           deletions: 1,
           changes: 2,
