@@ -1658,13 +1658,11 @@ describe('GCFBootstrapper', () => {
     });
     it('can return an Octokit instance given an installation id', async () => {
       const bootstrapper = new GCFBootstrapper();
-      const configStub = sandbox
-        .stub(bootstrapper, 'getBotConfig')
-        .resolves({
-          appId: 1234,
-          webhookSecret: 'foo',
-          privateKey: 'cert',
-        });
+      const configStub = sandbox.stub(bootstrapper, 'getBotConfig').resolves({
+        appId: 1234,
+        webhookSecret: 'foo',
+        privateKey: 'cert',
+      });
       const octokit = await bootstrapper.getAuthenticatedOctokit(1234);
       assert.ok(octokit);
       sinon.assert.calledOnce(configStub);
@@ -1672,13 +1670,11 @@ describe('GCFBootstrapper', () => {
 
     it('can return an Octokit instance without an installation id', async () => {
       const bootstrapper = new GCFBootstrapper();
-      const configStub = sandbox
-        .stub(bootstrapper, 'getBotConfig')
-        .resolves({
-          appId: 1234,
-          webhookSecret: 'foo',
-          privateKey: 'cert',
-        });
+      const configStub = sandbox.stub(bootstrapper, 'getBotConfig').resolves({
+        appId: 1234,
+        webhookSecret: 'foo',
+        privateKey: 'cert',
+      });
       const octokit = await bootstrapper.getAuthenticatedOctokit(undefined);
       assert.ok(octokit);
       sinon.assert.calledOnce(configStub);

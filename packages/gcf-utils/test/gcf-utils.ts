@@ -20,7 +20,7 @@ import {resolve} from 'path';
 import snapshot from 'snap-shot-it';
 import {describe, beforeEach, afterEach, it} from 'mocha';
 import nock from 'nock';
-import { Webhooks } from '@octokit/webhooks';
+import {Webhooks} from '@octokit/webhooks';
 
 nock.disableNetConnect();
 

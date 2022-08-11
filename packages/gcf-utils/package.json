@@ -28,6 +28,7 @@
     "@octokit/plugin-enterprise-compatibility": "2.0.1",
     "@octokit/rest": "^18.5.2",
     "@octokit/webhooks": "^10.1.2",
+    "@octokit/webhooks-types": "^6.3.3",
     "@probot/octokit-plugin-config": "^1.0.0",
     "@types/bunyan": "^1.8.7",
     "@types/dotenv": "^6.1.1",

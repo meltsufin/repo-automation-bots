@@ -92,6 +92,7 @@ export interface BotConfig {
   privateKey: string;
   appId: string | number;
   webhookSecret: string;
+  octokitType: typeof Octokit;
 }
 
 export type WebhookConfiguration = (app: Webhooks) => void;
@@ -349,6 +350,9 @@ export class GCFBootstrapper {
       privateKey,
       appId,
       webhookSecret,
+      octokitType: Octokit.plugin(ConfigPlugin).defaults({
+        authStrategy: createAppAuth,
+      }),
     };
   }
 

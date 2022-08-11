@@ -14,7 +14,7 @@
 
 import {promises as fs} from 'fs';
 import {v1} from '@google-cloud/secret-manager';
-import { BotConfig } from '../gcf-utils';
+import {BotConfig} from '../gcf-utils';
 
 /// gather gets the key from the specified keyfile
 // and returns a probot.Options object

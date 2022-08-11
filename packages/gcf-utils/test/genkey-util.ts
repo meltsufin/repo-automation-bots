@@ -16,7 +16,7 @@ import {create} from '../src/bin/genkey-util';
 import {describe, beforeEach, afterEach, it} from 'mocha';
 import sinon from 'sinon';
 import {v1} from '@google-cloud/secret-manager';
-import { BotConfig } from '../src/gcf-utils';
+import {BotConfig} from '../src/gcf-utils';
 
 describe('genkey', () => {
   describe('run', () => {

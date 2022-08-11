@@ -19,7 +19,7 @@ import {resolve} from 'path';
 import {config} from 'dotenv';
 import assert from 'assert';
 import {VERSION as OCTOKIT_LOGGING_PLUGIN_VERSION} from '../../src/logging/logging-octokit-plugin';
-import { Webhooks } from '@octokit/webhooks';
+import {Webhooks} from '@octokit/webhooks';
 
 /**
  * How to run these tests:
