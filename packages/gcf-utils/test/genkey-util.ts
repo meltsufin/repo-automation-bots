@@ -14,16 +14,16 @@
 
 import {create} from '../src/bin/genkey-util';
 import {describe, beforeEach, afterEach, it} from 'mocha';
-import {Options} from 'probot';
 import sinon from 'sinon';
 import {v1} from '@google-cloud/secret-manager';
+import { BotConfig } from '../src/gcf-utils';
 
 describe('genkey', () => {
   describe('run', () => {
     let secretClientStub: v1.SecretManagerServiceClient;
     let createSecretStub: sinon.SinonStub;
     let addSecretVersionStub: sinon.SinonStub;
-    let opts: Options;
+    let opts: BotConfig | undefined;
     let botname: string;
     let project: string;
 
@@ -57,7 +57,7 @@ describe('genkey', () => {
       createSecretStub.reset();
       addSecretVersionStub.reset();
       botname = '';
-      opts = {};
+      opts = undefined;
       project = '';
     });
 
@@ -65,7 +65,7 @@ describe('genkey', () => {
       opts = {
         privateKey: 'asdf',
         appId: 12345,
-        secret: 'zxcv',
+        webhookSecret: 'zxcv',
       };
 
       await create(secretClientStub, project, botname, opts);

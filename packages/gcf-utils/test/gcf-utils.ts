@@ -14,20 +14,20 @@
 
 /* eslint-disable @typescript-eslint/no-var-requires */
 
-import {addOrUpdateIssueComment} from '../src/gcf-utils';
+import {addOrUpdateIssueComment, WebhookConfiguration} from '../src/gcf-utils';
 
 import {resolve} from 'path';
 import snapshot from 'snap-shot-it';
-import {Probot, ProbotOctokit} from 'probot';
 import {describe, beforeEach, afterEach, it} from 'mocha';
 import nock from 'nock';
+import { Webhooks } from '@octokit/webhooks';
 
 nock.disableNetConnect();
 
 const fixturesPath = resolve(__dirname, '../../test/fixtures');
 
 // Test app
-const app = (app: Probot) => {
+const app: WebhookConfiguration = (app: Webhooks) => {
   app.on('issues', async context => {
     await addOrUpdateIssueComment(
       context.octokit,
@@ -43,17 +43,12 @@ const app = (app: Probot) => {
 
 describe('gcf-utils', () => {
   describe('addOrUpdateIssueComment', () => {
-    let probot: Probot;
+    let webhooks: Webhooks;
     beforeEach(() => {
-      probot = new Probot({
-        appId: 1,
-        githubToken: 'test',
-        Octokit: ProbotOctokit.defaults({
-          retry: {enabled: false},
-          throttle: {enabled: false},
-        }),
+      webhooks = new Webhooks({
+        secret: 'webhook-secret',
       });
-      probot.load(app);
+      app(webhooks);
     });
 
     afterEach(() => {
@@ -73,7 +68,7 @@ describe('gcf-utils', () => {
         })
         .reply(200);
 
-      await probot.receive({
+      await webhooks.receive({
         name: 'issues',
         payload,
         id: 'test',
@@ -91,7 +86,7 @@ describe('gcf-utils', () => {
         )
         .reply(200, []);
 
-      await probot.receive({
+      await webhooks.receive({
         name: 'issues',
         payload,
         id: 'test',
@@ -115,7 +110,7 @@ describe('gcf-utils', () => {
         })
         .reply(200);
 
-      await probot.receive({
+      await webhooks.receive({
         name: 'issues',
         payload,
         id: 'test',

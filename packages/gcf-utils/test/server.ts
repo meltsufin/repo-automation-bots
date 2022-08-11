@@ -56,9 +56,9 @@ describe('GCFBootstrapper', () => {
           return host.startsWith('localhost:');
         });
 
-        sandbox.stub(bootstrapper, 'getProbotConfig').resolves({
+        sandbox.stub(bootstrapper, 'getBotConfig').resolves({
           appId: 1234,
-          secret: 'foo',
+          webhookSecret: 'foo',
           privateKey: 'cert',
         });
 
@@ -193,9 +193,9 @@ describe('GCFBootstrapper', () => {
           return host.startsWith('localhost:');
         });
 
-        sandbox.stub(bootstrapper, 'getProbotConfig').resolves({
+        sandbox.stub(bootstrapper, 'getBotConfig').resolves({
           appId: 1234,
-          secret: 'foo',
+          webhookSecret: 'foo',
           privateKey: 'cert',
         });
 

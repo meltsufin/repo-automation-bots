@@ -13,8 +13,8 @@
 // limitations under the License.
 
 import {promises as fs} from 'fs';
-import {Options} from 'probot';
 import {v1} from '@google-cloud/secret-manager';
+import { BotConfig } from '../gcf-utils';
 
 /// gather gets the key from the specified keyfile
 // and returns a probot.Options object
@@ -22,7 +22,7 @@ export async function gather(
   keyfile: string,
   id: number,
   webhookSecret: string
-): Promise<Options> {
+): Promise<BotConfig> {
   let keyContent = '';
   // Propagate exceptions up
   keyContent = await fs.readFile(keyfile, 'utf8');
@@ -30,7 +30,7 @@ export async function gather(
   return {
     privateKey: keyContent,
     appId: id,
-    secret: webhookSecret,
+    webhookSecret,
   };
 }
 
@@ -42,7 +42,7 @@ export async function create(
   smclient: v1.SecretManagerServiceClient,
   project: string,
   botname: string,
-  blob: Options
+  blob: BotConfig
 ) {
   const [secret] = await smclient.createSecret({
     parent: `projects/${project}`,

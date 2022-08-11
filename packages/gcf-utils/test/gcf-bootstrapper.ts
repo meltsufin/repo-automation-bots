@@ -20,6 +20,8 @@ import {
   HandlerFunction,
   RequestWithRawBody,
   getContextLogger,
+  WebhookConfiguration,
+  BotConfig,
 } from '../src/gcf-utils';
 import {describe, beforeEach, afterEach, it} from 'mocha';
 import {Octokit} from '@octokit/rest';
@@ -27,7 +29,6 @@ import {Octokit} from '@octokit/rest';
 import {RequestError} from '@octokit/request-error';
 // eslint-disable-next-line node/no-extraneous-import
 import {GraphqlResponseError} from '@octokit/graphql';
-import {Options, ApplicationFunction} from 'probot';
 import * as loggerModule from '../src/logging/gcf-logger';
 import * as express from 'express';
 import fs from 'fs';
@@ -157,7 +158,7 @@ describe('GCFBootstrapper', () => {
     let installationCronSpy: sinon.SinonStub;
     let globalCronSpy: sinon.SinonStub;
     let pubsubSpy: sinon.SinonStub;
-    let configStub: sinon.SinonStub<[boolean?], Promise<Options>>;
+    let configStub: sinon.SinonStub<[boolean?], Promise<BotConfig>>;
     let bootstrapper: GCFBootstrapper;
     let enqueueTask: sinon.SinonStub;
 
@@ -192,12 +193,12 @@ describe('GCFBootstrapper', () => {
 
     async function mockBootstrapper(
       wrapOpts?: WrapOptions,
-      appFn?: ApplicationFunction
+      appFn?: WebhookConfiguration
     ) {
       bootstrapper = new GCFBootstrapper();
-      configStub = sandbox.stub(bootstrapper, 'getProbotConfig').resolves({
+      configStub = sandbox.stub(bootstrapper, 'getBotConfig').resolves({
         appId: 1234,
-        secret: 'foo',
+        webhookSecret: 'foo',
         privateKey: 'cert',
       });
       // This replaces the authClient with an auth client that uses an
@@ -230,6 +231,8 @@ describe('GCFBootstrapper', () => {
           app.on('schedule.global' as any, globalCronSpy);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           app.on('pubsub.message' as any, pubsubSpy);
+
+          app.on('pull_request.ready_for_review', async context => {});
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           app.on('err' as any, sandbox.stub().throws());
         };
@@ -1477,7 +1480,7 @@ describe('GCFBootstrapper', () => {
 
   describe('loadProbot', () => {
     let bootstrapper: GCFBootstrapper;
-    let configStub: sinon.SinonStub<[boolean?], Promise<Options>>;
+    let configStub: sinon.SinonStub<[boolean?], Promise<BotConfig>>;
 
     beforeEach(() => {
       bootstrapper = new GCFBootstrapper({
@@ -1485,33 +1488,33 @@ describe('GCFBootstrapper', () => {
         functionName: 'my-function',
         location: 'my-location',
       });
-      configStub = sandbox.stub(bootstrapper, 'getProbotConfig').resolves({
+      configStub = sandbox.stub(bootstrapper, 'getBotConfig').resolves({
         appId: 1234,
-        secret: 'foo',
+        webhookSecret: 'foo',
         privateKey: 'cert',
       });
     });
 
     it('gets the config', async () => {
-      await bootstrapper.loadProbot(async () => {
+      await bootstrapper.loadWebhooks(async () => {
         // Do nothing
       });
       sinon.assert.calledOnce(configStub);
     });
 
     it('caches the probot if initialized', async () => {
-      await bootstrapper.loadProbot(async () => {
+      await bootstrapper.loadWebhooks(async () => {
         // Do nothing
       });
       sinon.assert.calledOnce(configStub);
-      await bootstrapper.loadProbot(async () => {
+      await bootstrapper.loadWebhooks(async () => {
         // Do nothing again
       });
       sinon.assert.calledOnce(configStub);
     });
   });
 
-  describe('getProbotConfig', () => {
+  describe('getBotConfig', () => {
     let bootstrapper: GCFBootstrapper;
     let secretClientStub: v1.SecretManagerServiceClient;
     let secretsStub: sinon.SinonStub;
@@ -1551,7 +1554,7 @@ describe('GCFBootstrapper', () => {
             },
           },
         ]);
-      await bootstrapper.getProbotConfig();
+      await bootstrapper.getBotConfig();
       sinon.assert.calledOnce(secretsStub);
       sinon.assert.calledOnceWithExactly(secretsStub, {name: 'foobar'});
       sinon.assert.calledOnce(secretVersionNameStub);
@@ -1568,7 +1571,7 @@ describe('GCFBootstrapper', () => {
           },
         ]);
 
-      assert.rejects(bootstrapper.getProbotConfig());
+      assert.rejects(bootstrapper.getBotConfig());
     });
 
     it('throws on empty payload', async () => {
@@ -1580,7 +1583,7 @@ describe('GCFBootstrapper', () => {
           },
         ]);
 
-      assert.rejects(bootstrapper.getProbotConfig());
+      assert.rejects(bootstrapper.getBotConfig());
     });
 
     it('throws on empty response', async () => {
@@ -1588,7 +1591,7 @@ describe('GCFBootstrapper', () => {
         .stub(secretClientStub, 'accessSecretVersion')
         .resolves([{}]);
 
-      assert.rejects(bootstrapper.getProbotConfig());
+      assert.rejects(bootstrapper.getBotConfig());
     });
   });
 
@@ -1656,10 +1659,10 @@ describe('GCFBootstrapper', () => {
     it('can return an Octokit instance given an installation id', async () => {
       const bootstrapper = new GCFBootstrapper();
       const configStub = sandbox
-        .stub(bootstrapper, 'getProbotConfig')
+        .stub(bootstrapper, 'getBotConfig')
         .resolves({
           appId: 1234,
-          secret: 'foo',
+          webhookSecret: 'foo',
           privateKey: 'cert',
         });
       const octokit = await bootstrapper.getAuthenticatedOctokit(1234);
@@ -1670,10 +1673,10 @@ describe('GCFBootstrapper', () => {
     it('can return an Octokit instance without an installation id', async () => {
       const bootstrapper = new GCFBootstrapper();
       const configStub = sandbox
-        .stub(bootstrapper, 'getProbotConfig')
+        .stub(bootstrapper, 'getBotConfig')
         .resolves({
           appId: 1234,
-          secret: 'foo',
+          webhookSecret: 'foo',
           privateKey: 'cert',
         });
       const octokit = await bootstrapper.getAuthenticatedOctokit(undefined);

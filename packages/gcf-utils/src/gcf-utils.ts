@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-import {createProbot, Probot, Options} from 'probot';
-import {ApplicationFunction} from 'probot/lib/types';
-import {createProbotAuth} from 'octokit-auth-probot';
+import {Webhooks, EmitterWebhookEvent} from '@octokit/webhooks';
+import {createAppAuth} from '@octokit/auth-app';
 // eslint-disable-next-line node/no-extraneous-import
 import AggregateError from 'aggregate-error';
 
@@ -88,6 +87,14 @@ interface EnqueueTaskParams {
   id: string;
   name: string;
 }
+
+export interface BotConfig {
+  privateKey: string;
+  appId: string | number;
+  webhookSecret: string;
+}
+
+export type WebhookConfiguration = (app: Webhooks) => void;
 
 export interface WrapOptions {
   // Whether or not to enqueue direct GitHub webhooks in a Cloud Task
@@ -228,7 +235,7 @@ function defaultTaskEnvironment(): BotEnvironment {
 }
 
 export class GCFBootstrapper {
-  probot?: Probot;
+  webhooks?: Webhooks;
 
   secretsClient: SecretManagerV1.SecretManagerServiceClient;
   cloudTasksClient: CloudTasksV2.CloudTasksClient;
@@ -285,18 +292,34 @@ export class GCFBootstrapper {
     this.flowControlDelayInSeconds = DEFAULT_FLOW_CONTROL_DELAY_IN_SECOND;
   }
 
-  async loadProbot(
-    appFn: ApplicationFunction,
+  async loadWebhooks(
+    appFn: WebhookConfiguration,
     logging?: boolean
-  ): Promise<Probot> {
-    if (!this.probot) {
-      const cfg = await this.getProbotConfig(logging);
-      this.probot = createProbot({overrides: cfg});
+  ): Promise<Webhooks> {
+    if (!this.webhooks) {
+      const cfg = await this.getBotConfig();
+      this.webhooks = new Webhooks({
+        secret: cfg.webhookSecret,
+        transform: this.payloadTransform.bind(this, cfg),
+      });
+      appFn(this.webhooks);
     }
+    return this.webhooks;
+  }
 
-    await this.probot.load(appFn);
-
-    return this.probot;
+  private async payloadTransform(
+    cfg: BotConfig,
+    event: EmitterWebhookEvent
+  ): Promise<EmitterWebhookEvent & {octokit: Octokit}> {
+    let octokit = this.buildAuthenticatedOctokit(cfg);
+    octokit = (await octokit.auth({
+      type: 'event-octokit',
+      event,
+    })) as Octokit;
+    return {
+      octokit,
+      ...event,
+    };
   }
 
   getSecretName(): string {
@@ -308,7 +331,7 @@ export class GCFBootstrapper {
     return `${secretName}/versions/latest`;
   }
 
-  async getProbotConfig(logging?: boolean): Promise<Options> {
+  async getBotConfig(): Promise<BotConfig> {
     const name = this.getLatestSecretVersionName();
     const [version] = await this.secretsClient.accessSecretVersion({
       name: name,
@@ -319,32 +342,14 @@ export class GCFBootstrapper {
       throw Error('did not retrieve a payload from SecretManager.');
     }
     const config = JSON.parse(payload);
-
-    if (Object.prototype.hasOwnProperty.call(config, 'cert')) {
-      config.privateKey = config.cert;
-      delete config.cert;
-    }
-    if (Object.prototype.hasOwnProperty.call(config, 'id')) {
-      config.appId = config.id;
-      delete config.id;
-    }
-    if (logging) {
-      logger.info('custom logging instance enabled');
-      const LoggingOctokit = Octokit.plugin(LoggingOctokitPlugin)
-        .plugin(ConfigPlugin)
-        .defaults({authStrategy: createProbotAuth});
-      return {...config, Octokit: LoggingOctokit} as Options;
-    } else {
-      logger.info('custom logging instance not enabled');
-      const DefaultOctokit = Octokit.plugin(ConfigPlugin).defaults({
-        authStrategy: createProbotAuth,
-      });
-      return {
-        ...config,
-        log: logger,
-        Octokit: DefaultOctokit,
-      } as Options;
-    }
+    const privateKey = config.privateKey ?? config.cert;
+    const appId = config.appId ?? config.id;
+    const webhookSecret = config.webhookSecret ?? config.secret;
+    return {
+      privateKey,
+      appId,
+      webhookSecret,
+    };
   }
 
   private parseWrapConfig(wrapOptions: WrapOptions | undefined): WrapConfig {
@@ -382,7 +387,7 @@ export class GCFBootstrapper {
    * @param appFn {ApplicationFunction} The probot handler function
    * @param wrapOptions {WrapOptions} Bot handler options
    */
-  server(appFn: ApplicationFunction, wrapOptions?: WrapOptions): http.Server {
+  server(appFn: WebhookConfiguration, wrapOptions?: WrapOptions): http.Server {
     return getServer(this.gcf(appFn, wrapOptions));
   }
 
@@ -392,14 +397,13 @@ export class GCFBootstrapper {
    * @param appFn {ApplicationFunction} The probot handler function
    * @param wrapOptions {WrapOptions} Bot handler options
    */
-  gcf(appFn: ApplicationFunction, wrapOptions?: WrapOptions): HandlerFunction {
+  gcf(appFn: WebhookConfiguration, wrapOptions?: WrapOptions): HandlerFunction {
     return async (request: RequestWithRawBody, response: express.Response) => {
       const wrapConfig = this.parseWrapConfig(wrapOptions);
 
       this.flowControlDelayInSeconds = wrapConfig.flowControlDelayInSeconds;
 
-      this.probot =
-        this.probot || (await this.loadProbot(appFn, wrapConfig.logging));
+      const webhooks = await this.loadWebhooks(appFn);
 
       // parse all common fields from a bot request
       const botRequest = parseBotRequest(request);
@@ -407,7 +411,7 @@ export class GCFBootstrapper {
       // validate the signature
       if (
         !wrapConfig.skipVerification &&
-        !(await this.probot.webhooks.verify(
+        !(await webhooks.verify(
           request.rawBody ? request.rawBody.toString() : request.body,
           botRequest.signature
         ))
@@ -498,7 +502,7 @@ export class GCFBootstrapper {
           try {
             // TODO: find out the best way to get this type, and whether we can
             // keep using a custom event name.
-            await this.probot.receive({
+            await webhooks.receive({
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               name: botRequest.eventName as any,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -874,7 +878,19 @@ export class GCFBootstrapper {
     installationId?: number,
     wrapConfig?: WrapConfig
   ): Promise<Octokit> {
-    const cfg = await this.getProbotConfig(wrapConfig?.logging);
+    const cfg = await this.getBotConfig();
+    return this.buildAuthenticatedOctokit(
+      cfg,
+      installationId,
+      wrapConfig?.logging
+    );
+  }
+
+  private buildAuthenticatedOctokit(
+    cfg: BotConfig,
+    installationId?: number,
+    logging?: boolean
+  ): Octokit {
     let opts = {
       appId: cfg.appId,
       privateKey: cfg.privateKey,
@@ -885,14 +901,14 @@ export class GCFBootstrapper {
         ...{installationId},
       };
     }
-    if (wrapConfig?.logging) {
+    if (logging) {
       const LoggingOctokit = Octokit.plugin(LoggingOctokitPlugin)
         .plugin(ConfigPlugin)
-        .defaults({authStrategy: createProbotAuth});
+        .defaults({authStrategy: createAppAuth});
       return new LoggingOctokit({auth: opts});
     } else {
       const DefaultOctokit = Octokit.plugin(ConfigPlugin).defaults({
-        authStrategy: createProbotAuth,
+        authStrategy: createAppAuth,
       });
       return new DefaultOctokit({auth: opts});
     }
@@ -1049,7 +1065,7 @@ export class GCFBootstrapper {
       // Payload conists of either the original params.body or, if Cloud
       // Storage has been configured, a tmp file in a bucket:
       const payload = await this.maybeWriteBodyToTmp(params.body, log);
-      const signature = (await this.probot?.webhooks.sign(payload)) || '';
+      const signature = (await this.webhooks?.sign(payload)) || '';
       await this.cloudTasksClient.createTask({
         parent: queuePath,
         task: {
@@ -1074,7 +1090,7 @@ export class GCFBootstrapper {
         },
       });
     } else {
-      const signature = (await this.probot?.webhooks.sign('')) || '';
+      const signature = (await this.webhooks?.sign('')) || '';
       await this.cloudTasksClient.createTask({
         parent: queuePath,
         task: {

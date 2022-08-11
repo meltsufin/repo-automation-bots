@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {GCFBootstrapper} from '../../src/gcf-utils';
+import {GCFBootstrapper, WebhookConfiguration} from '../../src/gcf-utils';
 import {describe, beforeEach, afterEach, it} from 'mocha';
-import {Probot} from 'probot';
 import {Octokit as GitHubAPI} from '@octokit/rest';
 import {resolve} from 'path';
 import {config} from 'dotenv';
 import assert from 'assert';
 import {VERSION as OCTOKIT_LOGGING_PLUGIN_VERSION} from '../../src/logging/logging-octokit-plugin';
+import { Webhooks } from '@octokit/webhooks';
 
 /**
  * How to run these tests:
@@ -72,7 +72,7 @@ describe('GCFBootstrapper Integration', () => {
       });
     });
   });
-  describe('getProbotConfig', () => {
+  describe('getBotConfig', () => {
     let bootstrapper: GCFBootstrapper;
 
     beforeEach(async () => {
@@ -83,7 +83,7 @@ describe('GCFBootstrapper Integration', () => {
     afterEach(() => {});
 
     it('returns valid options', async () => {
-      await bootstrapper.getProbotConfig();
+      await bootstrapper.getBotConfig();
     });
   });
 
@@ -97,7 +97,7 @@ describe('GCFBootstrapper Integration', () => {
 
     it('is called properly', async () => {
       let called = false;
-      const pb = await bootstrapper.loadProbot((app: Probot) => {
+      const pb = await bootstrapper.loadWebhooks((app: Webhooks) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         app.on('foo' as any, async () => {
           console.log('We are called!');
@@ -117,9 +117,9 @@ describe('GCFBootstrapper Integration', () => {
 
     it('provides github with logging plugin', async () => {
       let called = false;
-      const pb = await bootstrapper.loadProbot((app: Probot) => {
+      const pb = await bootstrapper.loadWebhooks((app: Webhooks) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        app.on('foo' as any, async context => {
+        app.on('pull_request' as any, async context => {
           assert(
             (
               context.octokit as unknown as GitHubAPI & {
@@ -133,7 +133,7 @@ describe('GCFBootstrapper Integration', () => {
 
       await pb.receive({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        name: 'foo' as any,
+        name: 'pull_request' as any,
         id: 'bar',
         payload: payload,
       });
